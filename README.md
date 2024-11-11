@@ -597,3 +597,144 @@ Los procedimientos almacenados en SQL Server son bloques de código que se almac
 
 ### Enunciado
 
+Cree un procedimiento almacenado llamado usp_CreateSimpleOrder en la base de datos Northwind. Este debe crear una nueva orden para un cliente específico con un producto en el detalle. Reciba como parámetros el CustomerID, ProductID y la Quantity del producto. Verifique que el cliente y el producto existan; si alguno no existe, muestre un error y termine la operación. Si ambos existen, inserte la orden en la tabla Orders y el detalle en Order Details. Utilice transacciones para asegurar la integridad y RAISEERROR para manejar errores.
+
+### SQL:
+
+```sql
+USE Northwind
+GO
+
+IF OBJECT_ID('usp_CreateSimpleOrder','P') IS NOT NULL
+    DROP PROCEDURE usp_CreateSimpleOrder
+GO
+
+CREATE PROCEDURE usp_CreateSimpleOrder
+    @CustomerID NCHAR(5),
+    @ProductID INT,
+    @Quantity INT
+AS
+BEGIN
+    DECLARE @OrderID INT;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Verificar si el cliente existe
+        IF NOT EXISTS (SELECT 1 FROM Customers WHERE CustomerID = @CustomerID)
+        BEGIN
+            RAISERROR ('El cliente no existe.', 16, 1);
+            RETURN;
+        END
+
+        -- Verificar si el producto existe
+        IF NOT EXISTS (SELECT 1 FROM Products WHERE ProductID = @ProductID)
+        BEGIN
+            RAISERROR ('El producto no existe.', 16, 1);
+            RETURN;
+        END
+
+        -- Insertar una nueva orden
+        INSERT INTO Orders (CustomerID, OrderDate, RequiredDate, ShipVia, Freight)
+        VALUES (@CustomerID, GETDATE(), DATEADD(day, 7, GETDATE()), 1, 10);
+
+        -- Obtener el ID de la orden generada
+        SET @OrderID = SCOPE_IDENTITY();
+
+        -- Insertar el detalle de la orden
+        INSERT INTO [Order Details] (OrderID, ProductID, UnitPrice, Quantity, Discount)
+        SELECT @OrderID, @ProductID, UnitPrice, @Quantity, 0
+        FROM Products
+        WHERE ProductID = @ProductID;
+
+        COMMIT TRANSACTION;
+        PRINT 'La orden se ha creado exitosamente con OrderID: ' + CAST(@OrderID AS NVARCHAR(10));
+
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        PRINT ERROR_MESSAGE()
+    END CATCH;
+END
+GO
+```
+
+
+### Explicación:
+
+- Contexto de la base de datos: Se utiliza la base de datos Northwind.
+- Eliminación del procedimiento almacenado existente: Si el procedimiento almacenado usp_CreateSimpleOrder ya existe, se elimina para evitar conflictos al recrearlo.
+- Creación del procedimiento almacenado: Se crea el procedimiento almacenado usp_CreateSimpleOrder con los parámetros @CustomerID, @ProductID y @Quantity.
+- Inicio del bloque TRY: Se inicia un bloque TRY para manejar posibles errores durante la ejecución del procedimiento.
+- Inicio de la transacción: Se inicia una transacción para agrupar las operaciones de inserción.
+- Verificación de la existencia del cliente: Se verifica si el cliente con el CustomerID proporcionado existe en la tabla Customers.
+- Verificación de la existencia del producto: Se verifica si el producto con el ProductID proporcionado existe en la tabla Products.
+- Inserción de la orden: Se inserta una nueva orden en la tabla Orders con los datos del cliente y la fecha actual.
+- Obtención del ID de la orden: Se obtiene el ID de la orden recién insertada.
+- Inserción del detalle de la orden: Se inserta el detalle de la orden en la tabla Order Details con el ProductID, la cantidad y el precio del producto.
+- Confirmación de la transacción: Se confirma la transacción si todas las operaciones se realizan con éxito.
+- Manejo de errores: En caso de error durante la ejecución del procedimiento, se revierte la transacción y se imprime el mensaje de error.
+
+
+## Ejemplo 2
+
+### Enunciado
+
+Cree un procedimiento almacenado llamado usp_UpdateProductStock en la base de datos Northwind que actualice la cantidad en stock de un producto. Reciba como parámetros el ProductID y el NewStock. Verifique que el producto exista; si no, genere un error. Si existe, actualice el campo UnitsInStock en la tabla Products con el nuevo valor. Utilice transacciones para asegurar la operación y RAISEERROR para manejar errores.
+
+### SQL:
+
+```sql
+USE Northwind
+GO
+
+IF OBJECT_ID('usp_UpdateProductStock','P') IS NOT NULL
+   DROP PROCEDURE usp_UpdateProductStock
+GO
+
+CREATE PROCEDURE usp_UpdateProductStock
+    @ProductID INT,
+    @NewStock INT
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Verificar si el producto existe
+        IF NOT EXISTS (SELECT 1 FROM Products WHERE ProductID = @ProductID)
+        BEGIN
+            RAISERROR ('El producto especificado no existe.', 16, 1);
+            RETURN;
+        END
+
+        -- Actualizar la cantidad en stock del producto
+        UPDATE Products
+        SET UnitsInStock = @NewStock
+        WHERE ProductID = @ProductID;
+
+        COMMIT TRANSACTION;
+        PRINT 'El stock del producto se ha actualizado correctamente para ProductID: ' + CAST(@ProductID AS NVARCHAR(10));
+
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        PRINT ERROR_MESSAGE();
+    END CATCH;
+END
+GO
+```
+
+### Explicación:
+
+- Contexto de la base de datos: Se utiliza la base de datos Northwind.
+- Eliminación del procedimiento almacenado existente: Si el procedimiento almacenado usp_UpdateProductStock ya existe, se elimina para evitar conflictos al recrearlo.
+- Creación del procedimiento almacenado: Se crea el procedimiento almacenado usp_UpdateProductStock con los parámetros @ProductID y @NewStock.
+- Inicio del bloque TRY: Se inicia un bloque TRY para manejar posibles errores durante la ejecución del procedimiento.
+- Inicio de la transacción: Se inicia una transacción para agrupar las operaciones de actualización.
+- Verificación de la existencia del producto: Se verifica si el producto con el ProductID proporcionado existe en la tabla Products.
+- Actualización de la cantidad en stock: Se actualiza el campo UnitsInStock del producto con el nuevo valor proporcionado.
+- Confirmación de la transacción: Se confirma la transacción si la actualización se realiza con éxito.
+- Manejo de errores: En caso de error durante la ejecución del procedimiento, se revierte la transacción y se imprime el mensaje de error.  
+
+
+
