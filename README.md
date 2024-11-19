@@ -738,3 +738,233 @@ GO
 
 
 
+# Quiz año 2023
+
+## Pregunta 1
+
+Enunciado:
+- Utilizar la base de datos llamada Datos.
+- Crear una vista llamada VistaClienteRutaSaldosz que muestre los siguientes campos:
+- NNOMBRE: Nombre del cliente desde la tabla CLIENTES.
+- APELLIDOS: Apellidos combinados (IAPELLI y IIAPELL) desde la tabla CLIENTES.
+- CODRUTA: Código de la ruta desde la tabla CLIENTES.
+- DISTRITO: Distrito de la ruta desde la tabla RUTAS.
+- FESALDO: Fecha del saldo desde la tabla SALDOS, en formato mm/dd/yyyy.
+- MES: Mes del saldo, obtenido mediante la función DATENAME en español.
+- SAMONTO: Monto del saldo desde la tabla SALDOS.
+- Filtrar los datos para mostrar únicamente los registros cuya FESALDO sea igual a 11/11/2019.
+- Configurar el idioma de la consulta en español mediante SET LANGUAGE Spanish y establecer el formato de fecha con SET DATEFORMAT.
+
+
+### SQL:
+
+```sql
+-- Configuración del idioma y formato de fecha
+SET LANGUAGE Spanish;
+SET DATEFORMAT ymd;
+
+-- Usar la base de datos
+USE Datos;
+GO
+
+-- Verificar si la vista existe y eliminarla si es necesario
+IF OBJECT_ID('VistaClienteRutaSaldosz', 'V') IS NOT NULL
+    DROP VIEW VistaClienteRutaSaldosz;
+GO
+
+-- Crear la vista
+CREATE VIEW VistaClienteRutaSaldosz AS
+SELECT
+    C.NNOMBRE AS NNOMBRE, -- Nombre del cliente
+    CONCAT(C.IAPELLI, ' ', C.IIAPELL) AS APELLIDOS, -- Apellidos combinados
+    C.CODRUTA AS CODRUTA, -- Código de ruta
+    R.DISTRITO AS DISTRITO, -- Distrito desde la tabla RUTAS
+    FORMAT(S.FESALDO, 'MM/dd/yyyy') AS FESALDO, -- Fecha del saldo en formato mm/dd/yyyy
+    DATENAME(MONTH, S.FESALDO) AS MES, -- Mes del saldo
+    S.SAMONTO AS SAMONTO -- Monto del saldo
+FROM
+    CLIENTES C
+JOIN
+    RUTAS R ON C.CODRUTA = R.CODRUTA
+JOIN
+    SALDOS S ON C.NCEDULA = S.NCEDULA
+WHERE
+    CONVERT(VARCHAR(10), S.FESALDO, 23) = '2019-11-11'; -- Filtrar por la fecha específica (yyyy-mm-dd)
+GO
+
+-- Consultar la vista para verificar los datos
+SELECT * FROM VistaClienteRutaSaldosz;
+GO
+```
+
+### Explicación:
+
+- Configuración del idioma y formato de fecha: Se establece el idioma en español y el formato de fecha en 'ymd' para la consulta.
+- Uso de la base de datos: Se utiliza la base de datos Datos.
+- Verificación y eliminación de la vista existente: Se verifica si la vista VistaClienteRutaSaldosz ya existe y se elimina si es necesario.
+- Creación de la vista: Se crea la vista VistaClienteRutaSaldosz que muestra los campos solicitados de las tablas CLIENTES, RUTAS y SALDOS.
+- Selección de datos: Se seleccionan los campos NNOMBRE, APELLIDOS, CODRUTA, DISTRITO, FESALDO, MES y SAMONTO.
+- Unión de tablas: Se unen las tablas CLIENTES, RUTAS y SALDOS mediante las claves primarias y extranjeras correspondientes.
+- Filtrado por fecha: Se filtran los registros para mostrar únicamente aquellos con la fecha de saldo igual a '11/11/2019'.
+- Formato de fecha y mes: Se formatea la fecha del saldo en 'mm/dd/yyyy' y se obtiene el nombre del mes en español.
+- Consulta de la vista: Se consulta la vista para verificar los datos seleccionados y filtrados.
+
+
+## Pregunta 2
+
+
+Enunciado:  
+Crear una copia de la tabla Products:
+
+- Usando la base de datos Northwind, realiza una copia de la tabla Products en una nueva tabla llamada ProductoRespaldo.
+Transacción para eliminar productos asociados a la categoría "BEVERAGES":
+
+- Verifica en la tabla Categories si existe una categoría llamada BEVERAGES.
+- Si la categoría BEVERAGES existe:  
+Elimina de la tabla ProductoRespaldo los productos asociados a esta categoría.
+- Verifica la cantidad de registros eliminados:  
+Si la cantidad de registros eliminados es igual o mayor a 10, revierte la eliminación y recupera los registros eliminados mediante un ROLLBACK.
+- Si la cantidad de registros eliminados es menor a 10, confirma la transacción mediante un COMMIT.
+- Si la categoría BEVERAGES no existe:  
+Confirma la transacción y no realiza ninguna eliminación.
+Transacción para eliminar productos distribuidos por la empresa "PAVLOVA, LTD":
+
+- Verifica en la tabla Suppliers si existe una compañía llamada PAVLOVA, LTD.
+- Si la compañía PAVLOVA, LTD existe:  
+Calcula la cantidad de registros asociados a los productos distribuidos por esta compañía.
+- Si los registros a eliminar son más de 6:  
+Elimina los productos de la tabla ProductoRespaldo asociados a PAVLOVA, LTD.
+- Verifica la cantidad de registros eliminados:  
+Si la cantidad de registros eliminados es igual o mayor a 6, revierte la eliminación y recupera los registros mediante un ROLLBACK.
+Si la cantidad de registros eliminados es menor a 6, confirma la transacción mediante un COMMIT.
+- Si la compañía PAVLOVA, LTD no existe:  
+Confirma la transacción y no realiza ninguna eliminación.
+Consulta de la tabla Shippers:
+
+- Al final, selecciona todos los registros de la tabla Shippers.
+
+
+### SQL:
+
+```sql
+
+-- 1. Crear una copia de la tabla Products en ProductoRespaldo
+-- Usar la base de datos Northwind
+USE Northwind;
+GO
+
+-- Verificar y eliminar la tabla de respaldo si ya existe
+IF OBJECT_ID('dbo.ProductoRespaldo', 'U') IS NOT NULL
+    DROP TABLE dbo.ProductoRespaldo;
+GO
+
+BEGIN TRY
+    BEGIN TRANSACTION CopiaProductoRespaldo;
+
+    -- Crear copia de la tabla Products
+    SELECT *
+    INTO dbo.ProductoRespaldo
+    FROM Products;
+
+    PRINT 'Tabla ProductoRespaldo creada exitosamente.';
+
+    -- 2. Transacción para eliminar productos asociados a la categoría BEVERAGES
+    BEGIN
+        -- Verificar si la categoría BEVERAGES existe
+        IF EXISTS (SELECT 1 FROM Categories WHERE CategoryName = 'BEVERAGES')
+        BEGIN
+            -- Eliminar productos asociados a BEVERAGES
+            DELETE FROM dbo.ProductoRespaldo
+            WHERE ProductID IN (
+                SELECT ProductID
+                FROM Products
+                WHERE CategoryID = (SELECT CategoryID FROM Categories WHERE CategoryName = 'BEVERAGES')
+            );
+
+            -- Verificar la cantidad de registros eliminados
+            IF @@ROWCOUNT >= 10
+            BEGIN
+                ROLLBACK TRANSACTION CopiaProductoRespaldo;
+                PRINT 'Se revirtió la eliminación debido a que la cantidad de registros eliminados de BEVERAGES es igual o mayor a 10.';
+                RETURN;
+            END
+            ELSE
+            BEGIN
+                PRINT 'Eliminación exitosa de productos asociados a la categoría BEVERAGES.';
+            END
+        END
+        ELSE
+        BEGIN
+            PRINT 'La categoría BEVERAGES no existe, no se realizaron eliminaciones.';
+        END
+    END;
+
+    -- 3. Transacción para eliminar productos distribuidos por PAVLOVA, LTD
+    BEGIN
+        -- Verificar si la compañía PAVLOVA, LTD existe
+        IF EXISTS (SELECT 1 FROM Suppliers WHERE CompanyName = 'PAVLOVA, LTD')
+        BEGIN
+            -- Calcular la cantidad de registros asociados
+            DECLARE @RegistrosEliminados INT;
+            SET @RegistrosEliminados = (
+                SELECT COUNT(*)
+                FROM Products
+                WHERE SupplierID IN (SELECT SupplierID FROM Suppliers WHERE CompanyName = 'PAVLOVA, LTD')
+            );
+
+            -- Eliminar productos si los registros son mayores a 6
+            DELETE FROM dbo.ProductoRespaldo
+            WHERE ProductID IN (
+                SELECT ProductID
+                FROM Products
+                WHERE SupplierID IN (SELECT SupplierID FROM Suppliers WHERE CompanyName = 'PAVLOVA, LTD')
+            )
+            AND @RegistrosEliminados > 6;
+
+            -- Verificar la cantidad de registros eliminados
+            IF @@ROWCOUNT >= 6
+            BEGIN
+                ROLLBACK TRANSACTION CopiaProductoRespaldo;
+                PRINT 'Se revirtió la eliminación debido a que la cantidad de registros eliminados de PAVLOVA, LTD es igual o mayor a 6.';
+                RETURN;
+            END
+            ELSE
+            BEGIN
+                PRINT 'Eliminación exitosa de productos distribuidos por PAVLOVA, LTD.';
+            END
+        END
+        ELSE
+        BEGIN
+            PRINT 'La compañía PAVLOVA, LTD no existe, no se realizaron eliminaciones.';
+        END
+    END;
+
+    -- Confirmar transacción si no hubo problemas
+    COMMIT TRANSACTION CopiaProductoRespaldo;
+    PRINT 'Transacción completada exitosamente.';
+END TRY
+BEGIN CATCH
+    ROLLBACK TRANSACTION CopiaProductoRespaldo;
+    PRINT 'Error en la transacción. La operación ha sido revertida.';
+    PRINT ERROR_MESSAGE();
+END CATCH;
+GO
+
+-- Consultar la tabla Shippers
+SELECT * FROM Shippers;
+GO
+```
+
+### Explicación:
+
+- Creación de la copia de la tabla Products: Se crea una copia de la tabla Products en una nueva tabla llamada ProductoRespaldo
+- Transacción para eliminar productos asociados a la categoría BEVERAGES: Se verifica si la categoría BEVERAGES existe y se eliminan los productos asociados a esta categoría si es necesario. Se verifica la cantidad de registros eliminados y se revierte la eliminación si es igual
+- Transacción para eliminar productos distribuidos por PAVLOVA, LTD: Se verifica si la compañía PAVLOVA, LTD existe y se eliminan los productos asociados a esta compañía si es necesario. Se calcula la cantidad de registros eliminados y se revierte la eliminación si es igual o mayor a 6
+- Consulta de la tabla Shippers: Al
+finalizar las transacciones, se seleccionan todos los registros de la tabla Shippers para verificar los resultados.
+- Manejo de errores: Se utiliza un bloque TRY-CATCH para manejar posibles errores durante la ejecución de las transacciones y se revierte la operación en caso de error.
+- Confirmación de la transacción: Si no hay problemas, se confirma la transacción y se imprime un mensaje de éxito.
+- Consulta de la tabla Shippers: Se seleccionan todos los registros de la tabla Shippers para verificar los resultados de las transacciones realizadas.
+- Finalización del script: Se finaliza el script después de la consulta de la tabla Shippers.
+
+
