@@ -738,7 +738,7 @@ GO
 
 
 
-# Quiz año 2023
+# Otros
 
 ## Pregunta 1
 
